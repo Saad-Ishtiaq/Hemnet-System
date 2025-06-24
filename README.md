@@ -1,29 +1,58 @@
-# Coding Assignment
+## Introduction
 
-A company ‘MediaNow’ is selling packages - Basic, Plus, and Premium. The price for each package is updated regularly and a pricing log is kept for all packages. The company is doing well and the feature requests are pouring in! Help us by implementing the following two feature requests made by our coworkers.
+The MediaNow project is a pricing management system for various packages, which currently tracks the price of packages over time. This assignment required the addition of two new features: 
+1. **Municipalities**: Enabling package prices to vary depending on the municipality in which the package is sold.
+2. **Pricing History**: Providing an easy way for the accounting department to access price changes for a package within a given year, optionally filtered by municipality.
 
-## Feature request 1: Municipalities
-The company pricing expert wants to start segmenting our package prices based on the municipality the package is sold in. In other words, a package should be able to have different prices depending on a municipality. The current code doesn't really support this well (on purpose) and some structural changes are needed. We still want to have our pricing log, but now with the added municipalities.
+### **Given Requirements**
 
-To add this feature, continue the work in the file `app/lib/update_package_price.rb`.
+The assignment specifies two main feature requests:
 
-## Feature request 2: Pricing history
-An accounting department needs information on price changes that happened for the package basic in 2020. This kind of request will happen frequently, so we need a simple way to fetch pricing history, given a package, a year and optionally a municipality.
+- **Feature 1: Municipalities**: Introduce a way to associate package prices with different municipalities, which would allow the company to have different prices for packages depending on the municipality. This would require structural changes in the data model, ensuring that historical pricing data remains intact.
+  
+- **Feature 2: Pricing History**: Create a simple and efficient way to retrieve the price history for a package, given a specific year, and optionally filtered by municipality. The goal was to implement a feature that could efficiently query pricing data, particularly for large datasets.
 
-To add a pricing history, continue the work in the file `app/lib/price_history.rb`.
+## **Approach Taken**
 
-As an example, assuming the following prices exist
-| Package       | Municipality  | Price   | Date        |
-| ------------- | ------------- | ------: | ----------: |
-| Premium       | Stockholm     | 100 kr  | 2023-04-01  |
-| Premium       | Stockholm     | 125 kr  | 2023-08-02  |
-| Premium       | Stockholm     | 175 kr  | 2023-12-24  |
-| Premium       | Göteborg      | 25 kr   | 2022-09-01  |
-| Premium       | Göteborg      | 50 kr   | 2023-02-03  |
-| Premium       | Göteborg      | 75 kr   | 2023-05-20  |
-| Bas           | Göteborg      | 100 kr  | 2023-06-01  |
+### **Feature 1: Municipalities**
 
-We expect something similar to the output below.
+#### **Objective:**
+The task required associating package prices with different municipalities. This was done to ensure that the prices could vary by location while keeping track of all historical data. The implementation needed to be backward compatible with the existing price records.
+
+#### **Design Decision:**
+- **Column vs Model**: Initially, I considered adding a column to the `prices` table to store the `municipality_name`. However, this would have introduced inconsistencies and limitations, such as case-sensitivity issues and a lack of flexibility. I decided to use a **Municipality model** instead.
+- **Municipality Model**: The **Municipality model** allows for clean data relationships and flexibility, as it can be extended to store additional information such as tax rules or regional data. It also ensures that all prices refer to a valid and consistent municipality by using a foreign key.
+  
+#### **Implementation:**
+- I created a new **Municipality model** and added a foreign key reference to the `prices` table.
+- To preserve old pricing data, I introduced a special municipality named **"global"** to assign to legacy price records that didn’t have a municipality associated with them. This ensures that no data is lost, and queries can still be made consistently.
+  
+#### **Updated Architecture**:
+- **Packages** has a one-to-many relationship with **Prices**.
+- **Municipalities** has a one-to-many relationship with **Prices**.
+- **Prices** belongs to both **Packages** and **Municipalities**.
+
+#### **Preserving Old Data**:
+- A migration was added to assign the **global** municipality to existing price records without an associated municipality.
+- Updated `seeds.rb` to handle both old and new data formats, ensuring consistent data.
+
+### **Feature 2: Pricing History**
+
+#### **Objective:**
+The task was to allow easy querying of price history for a package, given a specific year, and optionally filtered by municipality. The solution aimed to be fast, especially when dealing with large datasets.
+
+#### **Design Decision:**
+- I initially considered using **ElasticSearch** or **GraphQL** to improve query performance and flexibility. However, as the assignment didn’t require HTTP requests and the complexity of these tools wasn’t necessary for the given requirements, I opted to implement a **clean, modular Ruby solution**.
+  
+- **Caching**: I decided to implement **caching** for frequently requested price history data, which would reduce repeated database queries and improve response times. This was done using **Rails.cache** for efficient querying and caching.
+
+#### **Implementation**:
+- A **PriceHistoryService** class was created to handle the querying and caching of price history.
+- The `PriceHistory.call` method was implemented to retrieve pricing data for a given package and year, and optionally filter by municipality.
+- The data is grouped by municipality, and price history is returned in the required format.
+
+#### **Example Output**:
+
 ```ruby
 # Example without municipality
 PriceHistory.call(
@@ -31,63 +60,33 @@ PriceHistory.call(
   package: "premium",
 )
 
-=> { "Stockholm" => [100_00, 125_00, 175_00], "Göteborg" => [50_00, 75_00] }
+# Expected Output:
+# { "Stockholm" => [100_00, 125_00, 175_00], "Göteborg" => [50_00, 75_00] }
 
-# Example with municipality. Stockholm is filtered out.
+# Example with municipality
 PriceHistory.call(
   year: "2023",
   package: "premium",
   municipality: "göteborg",
 )
 
-=> { "Göteborg" => [50_00, 75_00] }
+# Expected Output:
+# { "Göteborg" => [50_00, 75_00] }
 ```
 
-## Starting out
-**NOTE: In this assignment we assume you are comfortable with developing Rails applications.**
+## **How to Set Up and Run the Application**
 
-We have set up a minimal Rails app with some models and tests added. Running rspec should result in all tests passing:
+  ```bash
+  bundle install
+  rails db:create
+  rails db:migrate
+  rails db:seed
+  rails server
+  ```
+  To run test cases
+  ``` bash
+  bundle exec rspec
+  ```
 
-```sh
-# Assuming the Rails app is set up and the database is created/migrated
-media_now $ rspec
-.......
-
-Finished in 0.03535 seconds (files took 1.05 seconds to load)
-7 examples, 0 failures
-```
-
-There is a seed that might be helpful in the beginning of the assignment. You probably want to update it after you finish the first feature request (though it is not required):
-
-```
-$ rails db:seed
-Removing old packages and their price histories
-Creating new packages
-Creating a price history for the packages
-```
-
-## A few notes about the assignment
-
-We would like you to model the product domain and update the application to enable the two features.
-Think through your solution and implement it based on the instructions and your own thoughts. Spend at most 3 hours on the assignment. It's not worth more of your time (or ours).
-
-- Complete the assignment, only having passing tests (old and new ones)
-- Approach the assignment as if it was a real task at work.
-- Write code as if it was to be delivered to production
-- Don't be afraid to update old tests if needed.
-- Use version control (Git preferably) and commit frequently
-- Set your own scope and make your own prioritizations for the challenge
-- You don't need to spend any time on deployment/ops solutions, e.g. using Docker
-- No HTTP requests are needed anywhere
-
-## If things go wrong
-Let us know if something doesn't seem right. We might have missed something. Don't panic! 💚
-
-## Follow-up
-Send us the code when you are done, preferably hosted on a service such as GitHub, Bitbucket, or Gitlab. We will review your solution in a follow-up interview where we will go through and discuss the different aspects of the application, for example:
-- Application structure
-- Data integrity
-- Testing
-- Design choices and their advantages and disadvantages
-
-To solve the assignment, clone this repo and push it with your solution to a new repository.
+### License
+This code belongs to Saad Ishtiaq. All rights reserved.😊
