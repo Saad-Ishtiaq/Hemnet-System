@@ -6,5 +6,8 @@
 /public/packs
 /node_modules
 /yarn-error.log
+/db/*.sqlite3-wal
+/db/*.sqlite3-shm
 
 /Gemfile.lock
+.byebug_history
