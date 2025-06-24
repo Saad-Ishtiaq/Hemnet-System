@@ -1,0 +1,15 @@
+---
+premium:
+  - amount_cents: 55500
+  - amount_cents: 66600
+  - amount_cents: 77700
+  - amount_cents: 88800
+
+plus:
+  - amount_cents: 19900
+  - amount_cents: 29900
+  - amount_cents: 39900
+
+basic:
+  - amount_cents: 5000
+  - amount_cents: 10000

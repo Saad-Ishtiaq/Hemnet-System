@@ -1,0 +1,7 @@
+---
+- name: "basic"
+  amount_cents: 200_00
+- name: "plus"
+  amount_cents: 599_00
+- name: "premium"
+  amount_cents: 1_111_00
