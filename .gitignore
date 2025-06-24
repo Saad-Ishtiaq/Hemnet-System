@@ -10,3 +10,4 @@
 /db/*.sqlite3-shm
 
 /Gemfile.lock
+.byebug_history
